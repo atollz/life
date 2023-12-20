@@ -3,10 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <title>Life</title>
+    <link href="style.css" rel="stylesheet" />
     <script src="code.js"></script>
-    <link href="style.css" />
 </head>
 <body>
+
+<form id="config">
+    <table>
+        <thead>
+         <tr>
+             <th>X</th>
+             <th>Y</th>
+             <th>Ячейка (px)</th>
+         </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td><input id="x" type="number" value="20" min="1" max="10000" /></td>
+            <td><input id="y" type="number" value="20" min="1" max="10000" /></td>
+            <td><input id="scale" type="number" value="10" min="5" max="100" /></td>
+        </tr>
+        <tr>
+            <td colspan="3">
+                <input type="submit" value="Задать начальное состояние">
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</form>
+
+<div id="init" class="hidden">
+    <h5>Кликните на ячейке чтобы ее переключить</h5>
+    <div class="root"></div>
+    <button>Запустить жизнь</button>
+</div>
 
 </body>
 </html>
