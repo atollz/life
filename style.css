@@ -8,28 +8,39 @@ th, td {
     padding: 5px
 }
 
-#init .root {
+.root {
     display: flex;
     padding: 10px;
     border: 1px solid gray;
-    flex-wrap: nowrap;
+    flex-direction: column;
     margin-bottom: 30px;
     overflow: auto;
+    max-width: 100%;
+    width: fit-content;
 }
 
-#init .root div {
+.row {
+    display: flex;
+    flex-wrap: nowrap;
+    width: fit-content;
+}
+
+.row div {
     display: inline-flex;
     width: 20px;
     height: 20px;
     border: 1px solid gray;
-    cursor: pointer;
     flex-shrink: 0;
 }
 
-#init .root div.active {
+#init .row div {
+    cursor: pointer;
+}
+
+.row div.active {
     background: green;
 }
 
-#init .root div:hover {
+#init .row div:hover {
     border-color: green;
 }
