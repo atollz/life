@@ -44,3 +44,7 @@ th, td {
 #init .row div:hover {
     border-color: green;
 }
+
+button {
+    margin-bottom: 20px;
+}
