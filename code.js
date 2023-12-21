@@ -12,7 +12,6 @@ class State {
                     this.#state.push(cell);
                 }
             }
-            this.#state =  this.#state.sort();
         }
     }
 
@@ -20,37 +19,56 @@ class State {
         this.#state = [];
     }
 
-    ToggleCellActive(cellName) {
-       const foundIndex = this.#state.indexOf(cellName);
+    IndexToColRow(index, config) {
+        const row = Math.trunc(index / config.x);
+        const col = index - row * config.x;
+
+        return { row, col };
+    }
+
+    RowColToIndex(row, col, config) {
+        return row * config.x + col;
+    }
+
+    ToggleCellActive(row, col, config) {
+      const index = this.RowColToIndex(row, col, config);
+
+       const foundIndex = this.#state.indexOf(index);
 
        if(foundIndex > -1) {
            this.#state.splice(foundIndex, 1);
        } else {
-           this.#state.push(cellName);
+           this.#state.push(index);
        }
     }
 
-    IsCellActive(cellName) {
-        const foundIndex = this.#state.indexOf(cellName);
+    IsRowColActive(row, col, config) {
+        const index = this.RowColToIndex(row, col, config);
+
+        const foundIndex = this.#state.indexOf(index);
 
         return foundIndex > -1;
     }
 
-    IsCellAlive(cellName, config) {
-        const activeNeighboursCount =
-            this.GetCellNeighbours(cellName, config).filter(neighbourCellName => this.IsCellActive(neighbourCellName)).length;
+    IsCellActive(index) {
+        const foundIndex = this.#state.indexOf(index);
 
-        if(this.IsCellActive(cellName)) {
+        return foundIndex > -1;
+    }
+
+    IsCellAlive(index, config) {
+        const activeNeighboursCount =
+            this.GetCellNeighbours(index, config).filter(neighbourCellIndex => this.IsCellActive(neighbourCellIndex)).length;
+
+        if(this.IsCellActive(index)) {
             return activeNeighboursCount === 2 || activeNeighboursCount === 3;
         } else {
             return activeNeighboursCount === 3;
         }
     }
 
-    GetCellNeighbours(cellName, config) {
-        const coords = cellName.split('-');
-        const row = parseInt(coords[0]);
-        const col = parseInt(coords[1]);
+    GetCellNeighbours(index, config) {
+        const { row, col } = this.IndexToColRow(index, config);
 
         const result = [];
 
@@ -66,7 +84,7 @@ class State {
                 if(newCol < 0) { newCol = config.y - 1; }
                 if(newCol > config.y - 1) { newCol = 0; }
 
-                result.push(`${ newRow }-${ newCol }`);
+                result.push(this.RowColToIndex(newRow, newCol, config));
             }
         }
 
@@ -93,7 +111,7 @@ class State {
     IsSame(anotherState) {
 
         if(anotherState.length === this.#state.length) {
-            return JSON.stringify(anotherState) === JSON.stringify(this.#state);
+            return anotherState.some(index => !this.#state.includes(index));
         }
 
         return false;
@@ -192,7 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const lifeButton = lifeContainer.getElementsByTagName('button')[0];
     const lifeHeader = lifeContainer.getElementsByTagName('h5')[0];
 
-
     configForm.addEventListener('submit', (e) => {
         e.preventDefault();
 
@@ -213,8 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let col = 0; col < lifeGenerator.Config.x; col++) {
                     const colDiv = document.createElement('div');
                     colDiv.onclick = (e) => {
-                        lifeGenerator.State.ToggleCellActive(`${row}-${col}`);
-                        if (lifeGenerator.State.IsCellActive(`${row}-${col}`)) {
+                        lifeGenerator.State.ToggleCellActive(row, col, lifeGenerator.Config);
+                        if (lifeGenerator.State.IsRowColActive(row, col, lifeGenerator.Config)) {
                             if (!e.target.classList.contains('active')) {
                                 e.target.classList.add('active');
                             }
@@ -250,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 for (let col = 0; col < lifeGenerator.Config.x; col++) {
                     const colDiv = document.createElement('div');
-                    if (lifeGenerator.State.IsCellActive(`${row}-${col}`)) {
+                    if (lifeGenerator.State.IsRowColActive(row, col, lifeGenerator.Config)) {
                         if (!colDiv.classList.contains('active')) {
                             colDiv.classList.add('active');
                         }
@@ -284,21 +301,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const iterationResult = lifeGenerator.CalcNextState();
                 totalTime += iterationResult.time;
 
-                for(let cellName of lifeGenerator.PrevState.Cells) {
-                    if(lifeGenerator.State.Cells.includes(cellName)) continue;
+                for(let cellIndex of lifeGenerator.PrevState.Cells) {
+                    if(lifeGenerator.State.Cells.includes(cellIndex)) continue;
 
-                    const coords = cellName.split('-');
-                    const row = parseInt(coords[0]);
-                    const col = parseInt(coords[1]);
+                    const { row, col } = lifeGenerator.PrevState.IndexToColRow(cellIndex, lifeGenerator.Config);
                     lifeContainerRows[row].getElementsByTagName('div')[col].classList.remove('active');
                 }
 
-                for(let cellName of lifeGenerator.State.Cells) {
-                    if(lifeGenerator.PrevState.Cells.includes(cellName)) continue;
+                for(let cellIndex of lifeGenerator.State.Cells) {
+                    if(lifeGenerator.PrevState.Cells.includes(cellIndex)) continue;
 
-                    const coords = cellName.split('-');
-                    const row = parseInt(coords[0]);
-                    const col = parseInt(coords[1]);
+                    const { row, col } = lifeGenerator.State.IndexToColRow(cellIndex, lifeGenerator.Config);
                     lifeContainerRows[row].getElementsByTagName('div')[col].classList.add('active');
                 }
 
@@ -334,10 +347,10 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let row = 0; row < lifeGenerator.Config.y; row++) {
                 const cellDivs = initRows[row].getElementsByTagName('div');
                 for (let col = 0; col < lifeGenerator.Config.x; col++) {
-                    const random = Math.trunc(Math.random()*1000);
+                    const random = Math.trunc(Math.random()*10000);
 
-                  if(random % 2) {
-                      lifeGenerator.State.ToggleCellActive(`${row}-${col}`);
+                  if(!(random % 4)) {
+                      lifeGenerator.State.ToggleCellActive(row, col, lifeGenerator.Config);
                       if(!cellDivs[col].classList.contains('active')) {
                           cellDivs[col].classList.add('active');
                       }
