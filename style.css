@@ -48,3 +48,19 @@ th, td {
 button {
     margin-bottom: 20px;
 }
+
+.field {
+    position: relative;
+
+    background-color: #e5e5f7;
+    opacity: 0.8;
+    background-image:  linear-gradient(#c7c7c7 1.4000000000000001px, transparent 1.4000000000000001px), linear-gradient(to right, #c7c7c7 1.4000000000000001px, #e5e5f7 1.4000000000000001px);
+    background-size: 20px 20px;
+}
+
+.field div {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: green;
+}

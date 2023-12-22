@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     const lifeContainer = document.getElementById("life");
-    const lifeContainerRoot = lifeContainer.getElementsByTagName('div')[0];
+    const lifeField = lifeContainer.getElementsByTagName('div')[1];
     const lifeButton = lifeContainer.getElementsByTagName('button')[0];
     const lifeHeader = lifeContainer.getElementsByTagName('h5')[0];
 
@@ -222,36 +222,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let stop = false;
         let totalTime = 0;
         function step3() {
-            lifeContainerRoot.innerHTML='';
+            lifeField.innerHTML='';
             lifeButton.innerHTML = 'Остановить';
             lifeHeader.innerHTML =  'Жизнь';
             initContainer.classList.add('hidden');
 
-            for(let row = 0; row < lifeGenerator.Config.y; row++) {
-                const rowDiv = document.createElement('div');
-                rowDiv.classList.add('row');
-
-                for (let col = 0; col < lifeGenerator.Config.x; col++) {
-                    const colDiv = document.createElement('div');
-                    if (lifeGenerator.State.IsRowColActive(row, col)) {
-                        if (!colDiv.classList.contains('active')) {
-                            colDiv.classList.add('active');
-                        }
-                    } else {
-                        if (colDiv.classList.contains('active')) {
-                            colDiv.classList.remove('active');
-                        }
-                    }
-
-                    rowDiv.appendChild(colDiv);
-                }
-
-                lifeContainerRoot.appendChild(rowDiv);
-            }
-
             lifeContainer.classList.remove('hidden');
-
-            const lifeContainerRows = lifeContainerRoot.getElementsByClassName('row');
 
             function stopIteration(msg) {
                 lifeHeader.innerHTML =  msg;
@@ -267,19 +243,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const iterationResult = lifeGenerator.CalcNextState();
                 totalTime += iterationResult.time;
 
+                lifeField.style.width = `${ lifeGenerator.Config.x * 20}px`;
+                lifeField.style.height = `${ lifeGenerator.Config.y * 20}px`;
+                lifeField.innerHTML='';
+
+
                 for(let cellIndex = 0; cellIndex < lifeGenerator.State.Length; cellIndex++) {
-                    if(lifeGenerator.State.Cells[cellIndex] === lifeGenerator.PrevState.Cells[cellIndex]) {
+                    if(!lifeGenerator.State.Cells[cellIndex]) {
                         continue;
                     }
 
                     const { row, col } = lifeGenerator.PrevState.IndexToColRow(cellIndex);
-                    if(lifeGenerator.State.Cells[cellIndex]) {
-                        if(!lifeContainerRows[row].getElementsByTagName('div')[col].classList.contains('active')) {
-                            lifeContainerRows[row].getElementsByTagName('div')[col].classList.add('active');
-                        }
-                    } else {
-                        lifeContainerRows[row].getElementsByTagName('div')[col].classList.remove('active');
-                    }
+                    const cell = document.createElement('div');
+                    cell.style.left = `${col * 20}px`;
+                    cell.style.top = `${row * 20}px`;
+                    lifeField.appendChild(cell);
                 }
 
                 if(!iterationResult.success) {
@@ -312,8 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
             lifeGenerator.State.Clear();
 
             const reducingKf = Math.ceil( Math.log2(lifeGenerator.State.Length));
-
-            console.log(reducingKf)
 
             for (let row = 0; row < lifeGenerator.Config.y; row++) {
                 const cellDivs = initRows[row].getElementsByTagName('div');
