@@ -1,64 +1,99 @@
 class State {
-    #state = [];
+    #state;
+    #config;
 
     get Cells() {
         return this.#state;
     }
 
-    constructor(prevState, config) {
-        if(prevState && config) {
-            for (let cell of prevState.GetAffectedCells(config)) {
-                if(prevState.IsCellAlive(cell, config)) {
-                    this.#state.push(cell);
+    get Length() {
+        return this.#config.x * this.#config.y;
+    }
+
+    constructor(config, prevState) {
+        this.#state = new Uint8Array(config.x * config.y);
+        this.#config = config;
+
+        if(prevState) {
+            for(let cellIndex; cellIndex < this.Length; cellIndex++) {
+                if(prevState.IsCellAlive(cellIndex)) {
+                    this.#state[cellIndex] = 1;
+                }
+            }
+
+            for (let cellIndex of prevState.GetAffectedCells()) {
+                if(prevState.WillCellBeActive(cellIndex)) {
+                    this.#state[cellIndex] = 1;
                 }
             }
         }
     }
 
     Clear() {
-        this.#state = [];
+        this.#state = new Uint8Array(this.Length);
     }
 
-    IndexToColRow(index, config) {
-        const row = Math.trunc(index / config.x);
-        const col = index - row * config.x;
+    IndexToColRow(index) {
+        const row = Math.trunc(index / this.#config.x);
+        const col = index - row * this.#config.x;
 
         return { row, col };
     }
 
-    RowColToIndex(row, col, config) {
-        return row * config.x + col;
+    RowColToIndex(row, col) {
+        return row * this.#config.x + col;
     }
 
-    ToggleCellActive(row, col, config) {
-      const index = this.RowColToIndex(row, col, config);
-
-       const foundIndex = this.#state.indexOf(index);
-
-       if(foundIndex > -1) {
-           this.#state.splice(foundIndex, 1);
-       } else {
-           this.#state.push(index);
-       }
+    ToggleCellActive(row, col) {
+        const index = this.RowColToIndex(row, col);
+        this.#state[index] = this.#state[index] ? 0 : 1;
     }
 
-    IsRowColActive(row, col, config) {
-        const index = this.RowColToIndex(row, col, config);
+    IsRowColActive(row, col) {
+        const index = this.RowColToIndex(row, col);
 
-        const foundIndex = this.#state.indexOf(index);
-
-        return foundIndex > -1;
+        return this.#state[index] !== 0;
     }
 
     IsCellActive(index) {
-        const foundIndex = this.#state.indexOf(index);
-
-        return foundIndex > -1;
+        return this.#state[index] !== 0;
     }
 
-    IsCellAlive(index, config) {
+    WillCellBeActive(index) {
+        const { row, col } = this.IndexToColRow(index);
+
+        let activeCount = 0;
+
+        for(let rowShift = -1; rowShift <= 1; rowShift++) {
+            for(let colShift = -1; colShift <= 1; colShift++) {
+                if(!rowShift && !colShift) continue;
+
+                let newRow = row + rowShift;
+                if(newRow < 0) { newRow = this.#config.x - 1; }
+                if(newRow > this.#config.x - 1) { newRow = 0; }
+
+                let newCol = col + colShift;
+                if(newCol < 0) { newCol = this.#config.y - 1; }
+                if(newCol > this.#config.y - 1) { newCol = 0; }
+
+                const newCellIndex = this.RowColToIndex(newRow, newCol);
+                if(this.#state[newCellIndex]) {
+                    activeCount ++;
+                    if(activeCount > 4) return false;
+                }
+            }
+        }
+
+        if(this.#state[index]) {
+            return activeCount === 2 || activeCount === 3;
+        }
+
+        return  activeCount === 3;
+    }
+
+    IsCellAlive(index) {
         const activeNeighboursCount =
-            this.GetCellNeighbours(index, config).filter(neighbourCellIndex => this.IsCellActive(neighbourCellIndex)).length;
+            this.GetCellNeighbours(index).filter(neighbourCellIndex => this.IsCellActive(neighbourCellIndex)).length;
 
         if(this.IsCellActive(index)) {
             return activeNeighboursCount === 2 || activeNeighboursCount === 3;
@@ -67,8 +102,8 @@ class State {
         }
     }
 
-    GetCellNeighbours(index, config) {
-        const { row, col } = this.IndexToColRow(index, config);
+    GetCellNeighbours(index) {
+        const { row, col } = this.IndexToColRow(index);
 
         const result = [];
 
@@ -77,27 +112,29 @@ class State {
                 if(!rowShift && !colShift) continue;
 
                 let newRow = row + rowShift;
-                if(newRow < 0) { newRow = config.x - 1; }
-                if(newRow > config.x - 1) { newRow = 0; }
+                if(newRow < 0) { newRow = this.#config.x - 1; }
+                if(newRow > this.#config.x - 1) { newRow = 0; }
 
                 let newCol = col + colShift;
-                if(newCol < 0) { newCol = config.y - 1; }
-                if(newCol > config.y - 1) { newCol = 0; }
+                if(newCol < 0) { newCol = this.#config.y - 1; }
+                if(newCol > this.#config.y - 1) { newCol = 0; }
 
-                result.push(this.RowColToIndex(newRow, newCol, config));
+                result.push(this.RowColToIndex(newRow, newCol));
             }
         }
 
         return result;
     }
 
-    GetAffectedCells(config) {
+    GetAffectedCells() {
         //Составить список всех клеток которые могут быть задействованы
         const affectedCells = new Set();
-        for(const cell of this.#state) {
-            affectedCells.add(cell);
-            for(const neighbour of this.GetCellNeighbours(cell, config)) {
-                affectedCells.add(neighbour);
+        for(let cellIndex = 0; cellIndex < this.Length; cellIndex++) {
+            if(this.#state[cellIndex]) {
+                affectedCells.add(cellIndex);
+                for(const neighbour of this.GetCellNeighbours(cellIndex)) {
+                    affectedCells.add(neighbour);
+                }
             }
         }
 
@@ -105,23 +142,18 @@ class State {
     }
 
     IsEmpty() {
-        return !this.#state.length;
+        return this.#state.every((value) => value === 0);
     }
 
     IsSame(anotherState) {
-
-        if(anotherState.length === this.#state.length) {
-            return anotherState.some(index => !this.#state.includes(index));
-        }
-
-        return false;
+        return this.#state.every((value, index) => value === anotherState[index]);
     }
 }
 
 class LifeGenerator {
 
-    #config = {};
-    #state = new State();
+    #config ;
+    #state;
     #history = [];
 
     get State() {
@@ -140,12 +172,9 @@ class LifeGenerator {
         return this.#config;
     }
 
-   InitConfig(value) {
-       this.#config = value;
-    }
-
-    [Symbol.iterator]() {
-        return this;
+   constructor(config) {
+       this.#config = config;
+       this.#state = new State(config);
     }
 
     CalcNextState() {
@@ -162,7 +191,7 @@ class LifeGenerator {
         const startTime = Date.now();
 
         this.#history.push(this.#state);
-        this.#state = new State(this.PrevState, this.#config);
+        this.#state = new State(this.#config, this.PrevState);
 
         const endTime = Date.now();
 
@@ -193,7 +222,6 @@ class LifeGenerator {
     }
 }
 
-const lifeGenerator = new LifeGenerator();
 
 document.addEventListener('DOMContentLoaded', () => {
     const configForm = document.getElementById("config");
@@ -210,10 +238,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const lifeButton = lifeContainer.getElementsByTagName('button')[0];
     const lifeHeader = lifeContainer.getElementsByTagName('h5')[0];
 
+    let lifeGenerator;
+
     configForm.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        lifeGenerator.InitConfig({
+        lifeGenerator = new LifeGenerator({
             x: document.getElementById('x').value,
             y: document.getElementById('y').value,
         });
@@ -230,8 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let col = 0; col < lifeGenerator.Config.x; col++) {
                     const colDiv = document.createElement('div');
                     colDiv.onclick = (e) => {
-                        lifeGenerator.State.ToggleCellActive(row, col, lifeGenerator.Config);
-                        if (lifeGenerator.State.IsRowColActive(row, col, lifeGenerator.Config)) {
+                        lifeGenerator.State.ToggleCellActive(row, col);
+                        if (lifeGenerator.State.IsRowColActive(row, col)) {
                             if (!e.target.classList.contains('active')) {
                                 e.target.classList.add('active');
                             }
@@ -241,10 +271,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     }
-
                     rowDiv.appendChild(colDiv);
                 }
-
                 initContainerRoot.appendChild(rowDiv);
             }
 
@@ -267,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 for (let col = 0; col < lifeGenerator.Config.x; col++) {
                     const colDiv = document.createElement('div');
-                    if (lifeGenerator.State.IsRowColActive(row, col, lifeGenerator.Config)) {
+                    if (lifeGenerator.State.IsRowColActive(row, col)) {
                         if (!colDiv.classList.contains('active')) {
                             colDiv.classList.add('active');
                         }
@@ -301,18 +329,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const iterationResult = lifeGenerator.CalcNextState();
                 totalTime += iterationResult.time;
 
-                for(let cellIndex of lifeGenerator.PrevState.Cells) {
-                    if(lifeGenerator.State.Cells.includes(cellIndex)) continue;
+                for(let cellIndex = 0; cellIndex < lifeGenerator.State.Length; cellIndex++) {
+                    if(lifeGenerator.State.Cells[cellIndex] === lifeGenerator.PrevState.Cells[cellIndex]) {
+                        continue;
+                    }
 
-                    const { row, col } = lifeGenerator.PrevState.IndexToColRow(cellIndex, lifeGenerator.Config);
-                    lifeContainerRows[row].getElementsByTagName('div')[col].classList.remove('active');
-                }
-
-                for(let cellIndex of lifeGenerator.State.Cells) {
-                    if(lifeGenerator.PrevState.Cells.includes(cellIndex)) continue;
-
-                    const { row, col } = lifeGenerator.State.IndexToColRow(cellIndex, lifeGenerator.Config);
-                    lifeContainerRows[row].getElementsByTagName('div')[col].classList.add('active');
+                    const { row, col } = lifeGenerator.PrevState.IndexToColRow(cellIndex);
+                    if(lifeGenerator.State.Cells[cellIndex]) {
+                        if(!lifeContainerRows[row].getElementsByTagName('div')[col].classList.contains('active')) {
+                            lifeContainerRows[row].getElementsByTagName('div')[col].classList.add('active');
+                        }
+                    } else {
+                        lifeContainerRows[row].getElementsByTagName('div')[col].classList.remove('active');
+                    }
                 }
 
                 if(!iterationResult.success) {
@@ -350,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const random = Math.trunc(Math.random()*10000);
 
                   if(!(random % 4)) {
-                      lifeGenerator.State.ToggleCellActive(row, col, lifeGenerator.Config);
+                      lifeGenerator.State.ToggleCellActive(row, col);
                       if(!cellDivs[col].classList.contains('active')) {
                           cellDivs[col].classList.add('active');
                       }
@@ -360,6 +389,5 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-
     });
 });
