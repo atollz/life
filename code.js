@@ -15,13 +15,7 @@ class State {
         this.#config = config;
 
         if(prevState) {
-            for(let cellIndex; cellIndex < this.Length; cellIndex++) {
-                if(prevState.IsCellAlive(cellIndex)) {
-                    this.#state[cellIndex] = 1;
-                }
-            }
-
-            for (let cellIndex of prevState.GetAffectedCells()) {
+            for(let cellIndex = 0; cellIndex < this.Length; cellIndex++) {
                 if(prevState.WillCellBeActive(cellIndex)) {
                     this.#state[cellIndex] = 1;
                 }
@@ -52,10 +46,6 @@ class State {
     IsRowColActive(row, col) {
         const index = this.RowColToIndex(row, col);
 
-        return this.#state[index] !== 0;
-    }
-
-    IsCellActive(index) {
         return this.#state[index] !== 0;
     }
 
@@ -90,57 +80,6 @@ class State {
 
         return  activeCount === 3;
     }
-
-    IsCellAlive(index) {
-        const activeNeighboursCount =
-            this.GetCellNeighbours(index).filter(neighbourCellIndex => this.IsCellActive(neighbourCellIndex)).length;
-
-        if(this.IsCellActive(index)) {
-            return activeNeighboursCount === 2 || activeNeighboursCount === 3;
-        } else {
-            return activeNeighboursCount === 3;
-        }
-    }
-
-    GetCellNeighbours(index) {
-        const { row, col } = this.IndexToColRow(index);
-
-        const result = [];
-
-        for(let rowShift = -1; rowShift <= 1; rowShift++) {
-            for(let colShift = -1; colShift <= 1; colShift++) {
-                if(!rowShift && !colShift) continue;
-
-                let newRow = row + rowShift;
-                if(newRow < 0) { newRow = this.#config.x - 1; }
-                if(newRow > this.#config.x - 1) { newRow = 0; }
-
-                let newCol = col + colShift;
-                if(newCol < 0) { newCol = this.#config.y - 1; }
-                if(newCol > this.#config.y - 1) { newCol = 0; }
-
-                result.push(this.RowColToIndex(newRow, newCol));
-            }
-        }
-
-        return result;
-    }
-
-    GetAffectedCells() {
-        //Составить список всех клеток которые могут быть задействованы
-        const affectedCells = new Set();
-        for(let cellIndex = 0; cellIndex < this.Length; cellIndex++) {
-            if(this.#state[cellIndex]) {
-                affectedCells.add(cellIndex);
-                for(const neighbour of this.GetCellNeighbours(cellIndex)) {
-                    affectedCells.add(neighbour);
-                }
-            }
-        }
-
-        return Array.from(affectedCells);
-    }
-
     IsEmpty() {
         return this.#state.every((value) => value === 0);
     }
@@ -221,7 +160,6 @@ class LifeGenerator {
         };
     }
 }
-
 
 document.addEventListener('DOMContentLoaded', () => {
     const configForm = document.getElementById("config");
@@ -354,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                lifeHeader.innerHTML =`Жизнь выполнео шагов ${ iterationResult.step }  / ${ totalTime } ms`
+                lifeHeader.innerHTML =`Жизнь выполнено шагов ${ iterationResult.step }  / ${ totalTime } ms`
 
                 setTimeout(iterateLife, 0);
             }
@@ -373,12 +311,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             lifeGenerator.State.Clear();
 
+            const reducingKf = Math.ceil( Math.log2(lifeGenerator.State.Length));
+
+            console.log(reducingKf)
+
             for (let row = 0; row < lifeGenerator.Config.y; row++) {
                 const cellDivs = initRows[row].getElementsByTagName('div');
                 for (let col = 0; col < lifeGenerator.Config.x; col++) {
-                    const random = Math.trunc(Math.random()*10000);
+                    const random = Math.trunc(Math.random()*1000);
 
-                  if(!(random % 4)) {
+                  if(!(random % reducingKf )) {
                       lifeGenerator.State.ToggleCellActive(row, col);
                       if(!cellDivs[col].classList.contains('active')) {
                           cellDivs[col].classList.add('active');
